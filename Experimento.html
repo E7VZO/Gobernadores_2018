@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+
+
+<head>
+    <meta charset="utf-8">
+    <title>Gobernadores 2018</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: sans-serif;
+            font-size: 14px;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        dd {
+            margin-left: 0;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        dl {
+            margin-bottom: 0;
+        }
+
+        #recenter-btn {
+            position: absolute;
+            z-index: 1;
+            top: 10px;
+            right: 10px;
+            padding: 6px 12px;
+            background-color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+
+        .g-popup {
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.2);
+            font-family: sans-serif;
+            max-width: 300px;
+            /* Adjust as needed */
+            white-space: normal;
+            /* Allow text wrapping */
+        }
+
+
+        /* Styling for table headers */
+        .g-table-th {
+            font-weight: normal;
+            /* Setting table headers to normal */
+        }
+
+        /* Making table data bold */
+        .g-table-td.g-table-name p,
+        .g-table-td.g-table-votes,
+        .g-table-td.g-table-pct {
+            font-weight: bold;
+        }
+
+        /* Content styling inside the popup */
+        .g-popup-content {
+            padding: 10px;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        /* A title inside the popup content */
+        .g-popup-content h3 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        /* A button inside the popup content */
+        .g-popup-content button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .g-popup-content button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+
+</head>
+
+
+<body>
+    <button id="recenter-btn">Recentrar</button>
+    <div id="map"></div>
+
+    <script>
+        function capitalizeFirstLetter(string) {
+            return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
+        }
+
+        function capitalizeWords(string) {
+            return string.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+        }
+
+        mapboxgl.accessToken = 'pk.eyJ1IjoiY2lwb2xubWFzIiwiYSI6ImNsaDd5M2l5YzAzODczbW8xczYyajlrdnEifQ.CHPTM9uRopkKgztYPfnMcA';
+        var bounds = [
+            [-118.36, 14.53], // Southwest coordinates
+            [-86.67, 32.72]  // Northeast coordinates
+        ];
+
+        var map = new mapboxgl.Map({
+            container: 'map', // container ID
+            style: 'mapbox://styles/cipolnmas/cll5s5mzm00fm01ql18nyci91', // style URL 
+            center: [-101.99, 24], // starting position [lng, lat] 
+            zoom: 5, // starting zoom
+            // maxZoom: 5,
+            minZoom: 5,
+            maxBounds: bounds,
+            hash: false
+        });
+
+        map.on('load', function () {
+            // Add a layer with an initially empty filter
+            if (!map.getLayer('state-highlight')) {
+                map.addLayer({
+                    'id': 'state-highlight',
+                    'type': 'line',
+                    'source': 'GB2018_ID',  // This should match your source ID for the states
+                    'layout': {},
+                    'paint': {
+                        'line-color': '#000000',  // Choose the highlight color
+                        'line-width': 20  // Choose the width of the highlight line
+                    },
+                    'filter': ['==', 'id', '']  // Initial filter will match nothing
+                });
+            }
+
+            //  map.dragPan.disable();
+
+            map.on('mousemove', 'states', function (e) {
+                if (e.features.length) {
+                    // Set the filter of the highlight layer to the hovered state
+                    map.setFilter('state-highlight', ['==', 'id', e.features[0].properties.id]);
+                }
+            });
+
+            // When the mouse leaves the state layer, set the highlight filter to an empty state
+            map.on('mouseleave', 'states', function () {
+                map.setFilter('state-highlight', ['==', 'id', '']);
+            });
+        });
+
+        // End Hoover
+
+        var nav = new mapboxgl.NavigationControl();
+        map.addControl(nav, 'top-left');
+
+        map.on('mousemove', function (event) {
+            if (map.loaded()) {
+                var features = map.queryRenderedFeatures(event.point, {
+                    layers: ['states']
+                });
+                map.getCanvas().style.cursor = features.length ? 'pointer' : '';
+            }
+        });
+
+        map.on('click', function (event) {
+            var geometry = event.point;
+            var parameters = {
+                layers: ['states']
+            };
+            var features = map.queryRenderedFeatures(geometry, parameters);
+            // console.log(features);
+            // console.log(features.length + ' features');
+            // console.log(states);
+            // console.log(states.properties);
+
+
+            if (features.length) {
+                var states = features[0];
+                var estado = capitalizeWords(states.properties.ESTAD) || '—'; // Estado 
+                var candidato = capitalizeWords(states.properties.FIRST_CA) || '—'; // Nombre del Candidato Ganador
+                var partido = states.properties.FIRST_PA || '—'; // Nombre del Partido Ganador
+                var porcentaje = states.properties.FIRST_PE || '—'; // Porcentaje 
+                if (porcentaje !== '—' && !/%$/.test(porcentaje)) {
+                    porcentaje += '%';
+                }
+                var votos = states.properties.FIRST_V || '—'; // Número de votos
+                if (votos !== '—') {
+                    votos = parseInt(votos.replace(/,/g, ''), 10).toLocaleString();
+                }
+                var año = states.properties.STATE || '—'; // Año de elección
+                // console.log(estado, año, candidato, partido, porcentaje, votos);
+
+                var popup = new mapboxgl.Popup({ className: 'g-popup' })
+                    .setLngLat(event.lngLat)
+                    .setHTML(
+                        '<dl>' +
+                        '<dt>Gobernador</dt>' +
+                        '<dd>' + candidato + '</dd>' +
+                        '</dl>' +
+                        '<dl>' +
+                        '<dt>Partido</dt>' +
+                        '<dd>' + partido + '</dd>' +
+                        '</dl>' +
+                        '<table>' +
+                        '<thead>' +
+                        '<tr>' +
+                        '<td class="g-table-th">Votos</td>' +
+                        '<td class="g-table-th g-table-pct">%</td>' +
+                        '</tr>' +
+                        '</thead>' +
+                        '<tbody>' +
+                        '<tr>' +
+                        '<td class="g-table-td g-table-votes">' + votos + '</td>' +
+                        '<td class="g-table-td g-table-pct g-table-bold-text">' + porcentaje + '</td>' +
+                        '</tr>' +
+                        '</tbody>' +
+                        '</table>' +
+                        '<dl>' +
+                        '<dt>Año</dt>' +
+                        '<dd>' + año + '</dd>' +
+                        '</dl>'
+                    )
+                    .addTo(map);
+            }
+        });
+
+        document.getElementById('recenter-btn').addEventListener('click', function () {
+            map.flyTo({
+                center: [-101.99, 24],
+                zoom: 5
+            });
+        });
+
+
+
+
+    </script>
+</body>
+
+</html>
